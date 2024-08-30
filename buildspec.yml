@@ -1,0 +1,14 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - npm install -g aws-cdk
+      - npm install
+  build:
+    commands:
+      - npm run build
+      - cdk synth
+  post_build:
+    commands:
+      - cdk deploy --require-approval never --role-arn $DEPLOY_ROLE_ARN
