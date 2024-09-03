@@ -4,7 +4,10 @@ import { CommunicationsManagerStack } from '../lib/communications-manager-stack'
 
 test('SNS Topic Created', () => {
   const app = new cdk.App();
-  const stack = new CommunicationsManagerStack(app, 'TestStack');
+  const stack = new CommunicationsManagerStack(app, 'TestStack', {env: {
+    region: '',
+    account: ''
+  }});
   const template = Template.fromStack(stack);
 
   template.hasResourceProperties('AWS::SNS::Topic', {});
@@ -12,7 +15,10 @@ test('SNS Topic Created', () => {
 
 test('SQS Queue Created', () => {
   const app = new cdk.App();
-  const stack = new CommunicationsManagerStack(app, 'TestStack');
+  const stack = new CommunicationsManagerStack(app, 'TestStack', {env: {
+    region: '',
+    account: ''
+  }});
   const template = Template.fromStack(stack);
 
   template.hasResourceProperties('AWS::SQS::Queue', {});

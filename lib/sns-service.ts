@@ -4,14 +4,13 @@ import * as sns_subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import { Construct } from 'constructs';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
-
-const apiGatewayArn = "";
+import { CommunicationsManagerConstructProps } from './communications-manager-stack'
 
 export class SnsService extends Construct {
     public readonly topic: sns.Topic;
 
     // SNS Topic
-    constructor(scope: Construct, id: string) {
+    constructor(scope: Construct, id: string, props: CommunicationsManagerConstructProps) {
         super(scope, id);
         this.topic = new sns.Topic(this, 'CommunicationsTopic', {
             displayName: 'Communications SNS Topic',
