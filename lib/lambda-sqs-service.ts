@@ -8,6 +8,11 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { createAlarm } from './alarms';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as child_process from 'child_process';
 
 export class LambdaSQSService extends Construct {
     communicationsManagerQueName = 'communicationsManagerQueue';
@@ -35,19 +40,47 @@ export class LambdaSQSService extends Construct {
         // VPC for Lambda
         const vpc = new ec2.Vpc(this, 'LambdaVPC');
 
+        // S3 bucket for Lambda code
+        const bucket = new s3.Bucket(this, 'LambdaCodeBucket');
+        // Build and bundle the Lambda function using esbuild
+        const lambdaCodeDir = path.join(__dirname, '../src/lambda');
+        const outDir = path.join(__dirname, '../dist/lambda');
+        const zipFilePath = path.join(outDir, 'handler.zip');
+
+        // Create the dist directory if it doesn't exist
+        if (!fs.existsSync(outDir)){
+            fs.mkdirSync(outDir, { recursive: true });
+        }
+
+        // Bundle all .js files in the src/lambda directory
+        child_process.execSync(`esbuild ${lambdaCodeDir}/*.js --bundle --platform=node --target=node18 --external:aws-sdk --outdir=${outDir} --format=cjs`);
+
+        // Zip the entire bundled Lambda code directory
+        child_process.execSync(`zip -r ${zipFilePath} .`, { cwd: outDir });
+        
+        // Deploy Lambda code to S3 bucket
+        const deployment = new s3deploy.BucketDeployment(this, 'DeployLambdaCode', {
+            sources: [s3deploy.Source.asset(outDir)],
+            destinationBucket: bucket,
+            destinationKeyPrefix: 'lambda/', // optional prefix in the bucket
+        });
+
         // Lambda Function
         const fn = new lambda.Function(this, this.cmLambdaFunctionName, {
-        runtime: lambda.Runtime.NODEJS_18_X,
-        code: lambda.Code.fromAsset('src/lambda'),
-        handler: 'handler.handler',
-        vpc,
-        environment: {
-            QUEUE_URL: queue.queueUrl,
-        },
-        reservedConcurrentExecutions: 10,
-        memorySize: 1024,
-        timeout: cdk.Duration.seconds(300),
+            runtime: lambda.Runtime.NODEJS_18_X,
+            code: lambda.Code.fromBucket(bucket, 'lambda/handler.zip'),
+            handler: 'handler.handler',
+            vpc,
+            environment: {
+                QUEUE_URL: queue.queueUrl,
+            },
+            reservedConcurrentExecutions: 10,
+            memorySize: 1024,
+            timeout: cdk.Duration.seconds(300),
         });
+
+        // Ensure Lambda depends on the S3 deployment
+        fn.node.addDependency(deployment);
 
         // Grant Lambda permissions to read from SQS
         queue.grantConsumeMessages(fn);
@@ -105,6 +138,7 @@ export class LambdaSQSService extends Construct {
             comparisonOperator: 'GreaterThanThreshold',
             alarmName: `UnprocessedMessagesWarning-${this.communicationsManagerQueName}`,
             alarmDescription: 'Warning: Message not processed in 2 hours',
+            treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING
         }).then(() => {
             console.log(`UnprocessedMessagesWarning-${this.communicationsManagerQueName}` + ' Alarms setup successfully.');
         })
@@ -121,6 +155,7 @@ export class LambdaSQSService extends Construct {
             comparisonOperator: 'GreaterThanThreshold',
             alarmName: `UnprocessedMessagesCritical-${this.communicationsManagerQueName}`,
             alarmDescription: 'Critical: Message not processed in 8 hours',
+            treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING
         }).then(() => {
             console.log(`UnprocessedMessagesCritical-${this.communicationsManagerQueName}` + ' Alarms setup successfully.');
         })
@@ -141,6 +176,7 @@ export class LambdaSQSService extends Construct {
             comparisonOperator: 'GreaterThanThreshold',
             alarmName: `LambdaUnhandledExceptionInfo-${this.cmLambdaFunctionName}`,
             alarmDescription: 'Info: 5 unhandled exceptions in 30 minutes',
+            treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING
         }).then(() => {
             console.log(`LambdaUnhandledExceptionInfo-${this.cmLambdaFunctionName}`+ ' Alarms setup successfully.');
         })
@@ -157,6 +193,7 @@ export class LambdaSQSService extends Construct {
             comparisonOperator: 'GreaterThanThreshold',
             alarmName: `LambdaUnhandledExceptionWarning-${this.cmLambdaFunctionName}`,
             alarmDescription: 'Warning: 10 unhandled exceptions in 30 minutes',
+            treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING
         }).then(() => {
             console.log(`LambdaUnhandledExceptionWarning-${this.cmLambdaFunctionName}` + ' Alarms setup successfully.');
         })
@@ -173,6 +210,7 @@ export class LambdaSQSService extends Construct {
             comparisonOperator: 'GreaterThanThreshold',
             alarmName: `LambdaUnhandledExceptionCritical-${this.cmLambdaFunctionName}`,
             alarmDescription: 'Critical: More than 10 unhandled exceptions in 30 minutes',
+            treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING
         }).then(() => {
             console.log(`LambdaUnhandledExceptionCritical-${this.cmLambdaFunctionName}` + ' Alarms setup successfully.');
         })

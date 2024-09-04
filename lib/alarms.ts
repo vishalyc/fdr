@@ -1,7 +1,5 @@
-import * as AWS from 'aws-sdk';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import { Construct } from 'constructs';
-import { idText } from 'typescript';
 
 // Interface for Alarm Configuration
 interface AlarmConfig {
@@ -15,6 +13,7 @@ interface AlarmConfig {
     comparisonOperator: string;
     alarmName: string;
     alarmDescription: string;
+    treatMissingData: string;
     snsTopicArn: string;
     statistic: string;
 }
