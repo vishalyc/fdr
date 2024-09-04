@@ -45,6 +45,7 @@ export async function createAlarm(config: AlarmConfig): Promise<void> {
         ComparisonOperator: config.comparisonOperator,
         AlarmActions: [config.snsTopicArn],
         AlarmDescription: config.alarmDescription,
+        TreatMissingData: 'notBreaching'
     };
 
     try {
