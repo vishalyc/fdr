@@ -1,5 +1,14 @@
 {
+  "name": "fdrpinpointlambda",
+  "version": "1.0.0",
+  "description": "Used by communications manager to integrate with pinpoint for FDR project",
+  "main": "handler.ts",
+  "scripts": {
+    "start": "node handler.ts"
+  },
   "dependencies": {
-    "aws-sdk": "^2.1688.0"
-  }
+    "aws-sdk": "^2.1000.0"
+  },
+  "devDependencies": {},
+  "author": "PT"
 }
